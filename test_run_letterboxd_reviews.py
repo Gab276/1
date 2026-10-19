@@ -1,5 +1,6 @@
 """Offline tests for run_letterboxd_reviews.py, using a fake Apify client."""
 
+import copy
 import csv
 import json
 import sys
@@ -23,6 +24,28 @@ TASK_INPUT = {
     },
 }
 
+# Column order from the Actor's output schema, copied for the same reason.
+EXPECTED_FIELDS = [
+    "id",
+    "reviewerUsername",
+    "reviewerDisplayName",
+    "reviewerAvatar",
+    "filmUrl",
+    "watchedType",
+    "rating",
+    "ratingDisplay",
+    "liked",
+    "date",
+    "dateDisplay",
+    "commentsCount",
+    "likesCount",
+    "reviewText",
+    "reviewTextTruncated",
+    "reviewLang",
+    "fullTextUrl",
+    "sourceUrl",
+]
+
 ITEMS = [
     {
         "id": "r1",
@@ -35,12 +58,19 @@ ITEMS = [
         "notInSchema": "dropped from CSV",
     },
     {"id": "r2", "reviewerUsername": "bob", "rating": 1.0, "reviewLang": "fr"},
+    {"id": "r3", "reviewerUsername": "chloé", "reviewText": "Été — 😀", "reviewLang": "fr"},
 ]
 
 
 @pytest.fixture
 def apify(monkeypatch):
-    state = SimpleNamespace(status="SUCCEEDED", items=ITEMS, started=True, calls=[])
+    state = SimpleNamespace(
+        status="SUCCEEDED",
+        items=copy.deepcopy(ITEMS),
+        usage_total_usd=0.0123,
+        started=True,
+        calls=[],
+    )
 
     class FakeClient:
         def __init__(self, token):
@@ -56,7 +86,7 @@ def apify(monkeypatch):
                 return SimpleNamespace(
                     id="RUN1",
                     status=state.status,
-                    usage_total_usd=0.0123,
+                    usage_total_usd=state.usage_total_usd,
                     default_dataset_id="DS1",
                 )
 
@@ -92,16 +122,28 @@ def test_passes_charge_cap(apify, monkeypatch, tmp_path):
 def test_writes_json_and_csv(apify, monkeypatch, tmp_path):
     run(monkeypatch, "--out-dir", str(tmp_path))
 
-    assert json.loads((tmp_path / "reviews.json").read_text(encoding="utf-8")) == ITEMS
+    json_text = (tmp_path / "reviews.json").read_text(encoding="utf-8")
+    assert json.loads(json_text) == ITEMS
+    assert "Été — 😀" in json_text
 
     with (tmp_path / "reviews.csv").open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-    assert reader.fieldnames == runner.FIELDS
-    assert [row["id"] for row in rows] == ["r1", "r2"]
+    assert reader.fieldnames == EXPECTED_FIELDS
+    assert [row["id"] for row in rows] == ["r1", "r2", "r3"]
+    assert rows[0]["rating"] == "4.5"
     assert rows[0]["reviewText"] == 'Loved it,\nsaid "wow".'
     assert rows[1]["reviewLang"] == "fr"
     assert rows[1]["reviewText"] == ""
+    assert rows[2]["reviewerUsername"] == "chloé"
+    assert rows[2]["reviewText"] == "Été — 😀"
+
+
+def test_saves_results_when_usage_is_not_reported(apify, monkeypatch, tmp_path):
+    apify.usage_total_usd = None
+    assert run(monkeypatch, "--out-dir", str(tmp_path)) == 0
+    assert (tmp_path / "reviews.json").exists()
+    assert (tmp_path / "reviews.csv").exists()
 
 
 def test_missing_token_fails_without_calling_apify(apify, monkeypatch, tmp_path):
