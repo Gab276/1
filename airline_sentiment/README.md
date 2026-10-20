@@ -17,9 +17,10 @@ running it.
 3. Choose `Runtime → Run all`. When the upload button appears under
    "1. Load the Data", select both CSV files.
 
-Colab already has spaCy, its `en_core_web_sm` model, scikit-learn, PyTorch and
-matplotlib. The first cell installs any that are missing. The whole notebook
-runs on the CPU in about a minute.
+Colab already has spaCy, scikit-learn, PyTorch and matplotlib. The first cell
+installs any missing package, and the next cell downloads spaCy's
+`en_core_web_sm` model if it is not there. The whole notebook runs on the CPU
+in a minute or two.
 
 ## Run it on your own computer
 
@@ -33,22 +34,26 @@ Keep the two CSV files in the same folder as the notebook.
 
 ## What the notebook does
 
-1. Loads both files and prints some tweets from each label
-2. Pre-processes each tweet: `re` removes handles (`@united`) and links, then
+1. Loads both files
+2. Prints some tweets from each label
+3. Pre-processes each tweet: `re` removes handles (`@united`) and links, then
    spaCy lowercases the text and removes stopwords. It also turns HTML codes
    like `&amp;` back into characters and undoes the dataset's
    "Cancelled Flightled" / "Late Flightr" find-and-replace error.
-3. Builds a bag of words with `CountVectorizer`, fit on the training tweets only
-4. Trains Naive Bayes from scratch (`train_naive_bayes` / `test_naive_bayes`)
-5. Trains `Pipeline(CountVectorizer, MultinomialNB(alpha=1))` and checks that it
+4. Builds a bag of words with `CountVectorizer`, fit on the training tweets only
+5. Trains Naive Bayes from scratch (`train_naive_bayes` / `test_naive_bayes`)
+6. Trains `Pipeline(CountVectorizer, MultinomialNB(alpha=1))` and checks that it
    learns the same numbers as the scratch version
-6. Predicts the 60 test tweets: accuracy, classification report, confusion
+7. Predicts the 60 test tweets: accuracy, classification report, confusion
    matrix, and the tweets it got wrong
-7. Lists the words that push a tweet toward each label (log-likelihood ratios)
-8. Compares five pre-processing versions with 5-fold cross-validation on the
+8. Lists the words that push a tweet toward each label (log-likelihood ratios)
+9. Compares five pre-processing versions with 5-fold cross-validation on the
    training set
-9. Trains a PyTorch network (`Linear → ReLU → Linear`, cross-entropy, Adam) on
-   the same bag of words, using a validation split to pick the number of
-   steps, and tries different learning rates, activations and hidden sizes
-10. Learns a 2-D vector for every word with `EmbeddingBag` and plots them
-11. Predicts new tweets that you type in
+10. Trains a PyTorch network (`Linear → ReLU → Linear`, cross-entropy, Adam) on
+    the same bag of words. A validation split picks the number of steps and
+    compares learning rates, activations and hidden sizes. The final network is
+    then retrained with 5 random seeds to show how much its accuracy varies.
+11. Learns a 2-D vector for every word with `EmbeddingBag` and plots the 10
+    strongest words of each label
+12. Compares all the models in one table
+13. Predicts new tweets that you type in
