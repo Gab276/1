@@ -23,3 +23,9 @@ pay-per-event Actors.
 Each row has the reviewer, rating, liked flag, date, like and comment counts,
 review text, and language (`reviewLang`). Long reviews come back truncated
 (`reviewTextTruncated`); the full text is at `fullTextUrl`.
+
+## Airline tweet sentiment notebook
+
+[`airline_sentiment/`](airline_sentiment/) has a Colab notebook that trains
+Naive Bayes and a small PyTorch network on the airline tweets. See
+[`airline_sentiment/README.md`](airline_sentiment/README.md) for how to run it.
